@@ -175,7 +175,7 @@ class Display(object):
 
     @resolution.setter
     def resolution(self, new_res, custom=False):
-        if not self.is_enabled and not self.__cfg.change_table["is_enabled"]:
+        if not self.is_enabled and not self.is_changed["is_enabled"]:
             raise ValueError('The Screen is off')
         if new_res != self.__cfg.resolution:
             if not custom:
@@ -231,31 +231,30 @@ class Display(object):
              list: command if Display settings has been changed or False
         """
         # if has changed display settings
-        if True in self.__cfg.change_table.values():
+        if any(self.is_changed.values()):
 
             cmd = ['xrandr', '--output', self.name]
 
-            turn_off = False
-
             # if display be disabled
-            if self.__cfg.change_table['is_enabled'] and not self.is_enabled:
-                turn_off = True
+            if self.is_changed['is_enabled'] and not self.is_enabled:
                 cmd.append('--off')
+                return cmd
 
             # add another settings if display not be disabled
-            if not turn_off:
-                if self.is_changed["resolution"]:
-                    cmd.extend(['--mode', '{0}x{1}'.format(*self.resolution)])
+            if self.is_changed['resolution']:
+                cmd.extend(['--mode', '{0}x{1}'.format(*self.resolution)])
+            else:
+                cmd.extend(['--auto'])
 
-                if self.is_primary and self.is_changed["is_primary"]:
-                    cmd.append('--primary')
+            if self.is_primary and self.is_changed["is_primary"]:
+                cmd.append('--primary')
 
-                if self.is_changed["rotation"]:
-                    cmd.extend(['--rotate', self.rotation])
+            if self.is_changed["rotation"]:
+                cmd.extend(['--rotate', self.rotation])
 
-                if self.is_changed["position"]:
-                    rel, rel_to = self.position
-                    cmd.extend([self.pos_convert[rel], rel_to])
+            if self.is_changed["position"]:
+                rel, rel_to = self.position
+                cmd.extend([self.pos_convert[rel], rel_to])
 
             return cmd
         return False
@@ -277,7 +276,7 @@ class Display(object):
         if default:
             exec_cmd(['xrandr', '--output', self.name, '--auto'])
         else:
-            if True in self.__cfg.change_table.values():
+            if any(self.is_changed.values()):
                 exec_cmd(self.build_cmd())
         self.update_setting()
         self.__reset_change_table()
@@ -468,6 +467,7 @@ def parse_xrandr(lines, raw=False):
 
     if raw:
         return connected_outputs
+
     displays = []
     for item in connected_outputs:
         displays.append(
@@ -492,7 +492,7 @@ def get_display_data(output):
     Return:
         dict: display raw data
     """
-    for item in [scr for scr in parse_xrandr(exec_cmd(['xrandr']), True)]:
+    for item in (scr for scr in parse_xrandr(exec_cmd(['xrandr']), True)):
         if item['out'] == output:
             return item
     raise ValueError('Invalid output', output)
