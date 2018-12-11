@@ -235,16 +235,19 @@ class Display(object):
 
             cmd = ['xrandr', '--output', self.name]
 
-            # if display be disabled
-            if self.is_changed['is_enabled'] and not self.is_enabled:
-                cmd.append('--off')
-                return cmd
+            # if display take off or on
+            if self.is_changed['is_enabled']:
+                # take off
+                if not self.is_enabled:
+                    cmd.append('--off')
+                    return cmd
+                # take on if not set resolution
+                if self.is_enabled and not self.is_changed['resolution']:
+                    cmd.append('--auto')
 
             # add another settings if display not be disabled
             if self.is_changed['resolution']:
                 cmd.extend(['--mode', '{0}x{1}'.format(*self.resolution)])
-            else:
-                cmd.extend(['--auto'])
 
             if self.is_primary and self.is_changed["is_primary"]:
                 cmd.append('--primary')
